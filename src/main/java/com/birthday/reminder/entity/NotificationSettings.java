@@ -46,6 +46,10 @@ public class NotificationSettings {
     @Builder.Default
     private String notificationTime = "08:00";
 
+    @Column(name = "timezone")
+    @Builder.Default
+    private String timezone = "UTC";
+
     /**
      * Get notification days as a list of integers.
      */
@@ -92,6 +96,7 @@ public class NotificationSettings {
                 .emailEnabled(true)
                 .emailTemplate("Hey! Just a reminder that {friendName}'s birthday is coming up on {birthDate}. They will be turning {age} years old!")
                 .notificationTime("08:00")
+                .timezone("UTC")
                 .build();
     }
 }

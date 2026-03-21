@@ -22,6 +22,7 @@ public class NotificationSettingsResponse {
     private Boolean emailEnabled;
     private String emailTemplate;
     private String notificationTime;
+    private String timezone;
 
     /**
      * Convert NotificationSettings entity to response DTO.
@@ -33,6 +34,7 @@ public class NotificationSettingsResponse {
                 .emailEnabled(settings.getEmailEnabled())
                 .emailTemplate(settings.getEmailTemplate())
                 .notificationTime(settings.getNotificationTime())
+                .timezone(settings.getTimezone())
                 .build();
     }
 }

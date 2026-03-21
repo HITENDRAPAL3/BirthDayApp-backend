@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -37,16 +38,15 @@ public class BirthdayNotificationScheduler {
     private final EmailService emailService;
 
     /**
-     * Scheduled task that runs every hour to check and send birthday notifications.
-     * Only sends notifications to users whose preferred notification time matches the current hour.
+     * Scheduled task that runs every minute to check and send birthday notifications.
+     * Only sends notifications to users whose preferred notification time and timezone match the current time.
      */
     @Scheduled(cron = "${app.scheduler.cron}")
     @Transactional(readOnly = true)
     public void sendBirthdayNotifications() {
         LocalDateTime now = LocalDateTime.now();
-        int currentHour = now.getHour();
         
-        log.info("Starting birthday notification check at {} (hour: {})", now, currentHour);
+        log.info("Starting birthday notification check at {}", now);
         
         AtomicInteger notificationsSent = new AtomicInteger(0);
         AtomicInteger notificationsFailed = new AtomicInteger(0);
@@ -57,7 +57,7 @@ public class BirthdayNotificationScheduler {
         
         for (User user : users) {
             try {
-                processUserNotifications(user, currentHour, notificationsSent, notificationsFailed, usersSkipped);
+                processUserNotifications(user, notificationsSent, notificationsFailed, usersSkipped);
             } catch (Exception e) {
                 log.error("Error processing notifications for user {}: {}", user.getEmail(), e.getMessage());
             }
@@ -69,9 +69,9 @@ public class BirthdayNotificationScheduler {
 
     /**
      * Process notifications for a single user.
-     * Checks if it's the user's preferred notification hour and sends notifications.
+     * Checks if it's the user's preferred notification time in their chosen timezone.
      */
-    private void processUserNotifications(User user, int currentHour, AtomicInteger sent, AtomicInteger failed, AtomicInteger skipped) {
+    private void processUserNotifications(User user, AtomicInteger sent, AtomicInteger failed, AtomicInteger skipped) {
         // Get user's notification settings
         NotificationSettings settings = settingsRepository.findByUser(user).orElse(null);
         
@@ -80,17 +80,27 @@ public class BirthdayNotificationScheduler {
             return;
         }
 
-        // Check if current hour matches user's preferred notification time
-        int userPreferredHour = parseNotificationHour(settings.getNotificationTime());
-        if (currentHour != userPreferredHour) {
+        // Get current time in user's timezone
+        ZoneId userZone;
+        try {
+            userZone = ZoneId.of(settings.getTimezone() != null ? settings.getTimezone() : "UTC");
+        } catch (Exception e) {
+            log.warn("Invalid timezone '{}' for user {}, defaulting to UTC", settings.getTimezone(), user.getEmail());
+            userZone = ZoneId.of("UTC");
+        }
+        
+        LocalTime nowInUserZone = LocalTime.now(userZone);
+        LocalTime userPreferredTime = parseNotificationTime(settings.getNotificationTime());
+        
+        // Check if current time matches user's preferred notification time (hour and minute)
+        if (nowInUserZone.getHour() != userPreferredTime.getHour() || 
+            nowInUserZone.getMinute() != userPreferredTime.getMinute()) {
             skipped.incrementAndGet();
-            log.debug("Skipping user {} - not their notification hour (current: {}, preferred: {})", 
-                    user.getEmail(), currentHour, userPreferredHour);
             return;
         }
         
-        log.info("Processing notifications for user {} at their preferred time: {}", 
-                user.getEmail(), settings.getNotificationTime());
+        log.info("Processing notifications for user {} at their preferred time {} in timezone {}", 
+                user.getEmail(), settings.getNotificationTime(), userZone);
 
         // Get all active birthdays for this user
         List<Birthday> birthdays = birthdayRepository.findByUserAndIsActiveTrueOrderByBirthDateAsc(user);
@@ -122,19 +132,18 @@ public class BirthdayNotificationScheduler {
     }
     
     /**
-     * Parse the notification time string (HH:mm) to get the hour.
-     * Returns 8 (8 AM) as default if parsing fails.
+     * Parse the notification time string (HH:mm) to get the LocalTime.
+     * Returns 8:00 AM as default if parsing fails.
      */
-    private int parseNotificationHour(String notificationTime) {
+    private LocalTime parseNotificationTime(String notificationTime) {
         if (notificationTime == null || notificationTime.isEmpty()) {
-            return 8; // Default to 8 AM
+            return LocalTime.of(8, 0); // Default to 8 AM
         }
         try {
-            LocalTime time = LocalTime.parse(notificationTime);
-            return time.getHour();
+            return LocalTime.parse(notificationTime);
         } catch (Exception e) {
             log.warn("Failed to parse notification time '{}', defaulting to 8 AM", notificationTime);
-            return 8;
+            return LocalTime.of(8, 0);
         }
     }
 

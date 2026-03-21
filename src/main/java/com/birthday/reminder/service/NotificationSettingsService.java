@@ -71,6 +71,9 @@ public class NotificationSettingsService {
         if (request.getNotificationTime() != null) {
             settings.setNotificationTime(request.getNotificationTime());
         }
+        if (request.getTimezone() != null) {
+            settings.setTimezone(request.getTimezone());
+        }
 
         NotificationSettings updatedSettings = settingsRepository.save(settings);
         log.info("Notification settings updated for user: {}", user.getEmail());

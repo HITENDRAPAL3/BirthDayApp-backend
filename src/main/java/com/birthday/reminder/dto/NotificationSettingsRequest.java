@@ -27,4 +27,6 @@ public class NotificationSettingsRequest {
     private String emailTemplate;
 
     private String notificationTime;
+
+    private String timezone;
 }

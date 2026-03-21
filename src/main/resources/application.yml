@@ -46,7 +46,7 @@ app:
   
   scheduler:
     enabled: true
-    cron: "0 0 * * * ?"  # Run every hour to check per-user notification times
+    cron: "0 * * * * ?"  # Run every minute to check per-user notification times
   
   cors:
     allowed-origins: ${ALLOWED_ORIGINS:https://birthdayapp-frontend.onrender.com,http://localhost:5173,http://localhost:3000}
