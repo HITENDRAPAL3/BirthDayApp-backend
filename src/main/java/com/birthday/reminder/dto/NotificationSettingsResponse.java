@@ -34,7 +34,7 @@ public class NotificationSettingsResponse {
                 .emailEnabled(settings.getEmailEnabled())
                 .emailTemplate(settings.getEmailTemplate())
                 .notificationTime(settings.getNotificationTime())
-                .timezone(settings.getTimezone())
+                .timezone(settings.getTimezone() != null ? settings.getTimezone() : "UTC")
                 .build();
     }
 }
